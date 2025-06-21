@@ -1,5 +1,5 @@
-(def width 1280)
-(def height 720)
+(def width  500)
+(def height 500)
 
 (canvas width height)
 
@@ -9,7 +9,7 @@
       ))
 
 (def image
-  (-> (img-load   "examples/assets/azur_atramenta.jpg")
+  (-> (img-load   "examples/assets/mh_lena_2048.png")
       (img-resize 'bilinear width height)
       (img-mix    gradient 'multiply)
       ))
