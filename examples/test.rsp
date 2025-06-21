@@ -1,0 +1,17 @@
+(def width 1280)
+(def height 720)
+
+(canvas width height)
+
+(def gradient
+  (-> (img-load   "examples/assets/grad_b2w_100x100.png")
+      (img-resize 'bilinear width height)
+      ))
+
+(def image
+  (-> (img-load   "examples/assets/azur_atramenta.jpg")
+      (img-resize 'bilinear width height)
+      (img-mix    gradient 'multiply)
+      ))
+
+(img-render image)
