@@ -48,14 +48,17 @@ fn main() {
         }
     };
 
+    let start_time = std::time::Instant::now();
+
     let (tks, errs) = parse::lex(&src);
 
     let parse_errs = if let Some(tks) = &tks {
         let (lists, parse_errs) = parse::parse(tks, (src.len()..src.len()).into());
 
+        println!("Parsing took: {:.2?}", start_time.elapsed());
+
         if let Some(lists) = lists.filter(|_| errs.len() + parse_errs.len() == 0) {
             let mut env = eval::Env::new();
-            let start_time = std::time::Instant::now();
 
             for e in lists {
                 match eval::eval_expr(&mut env, e) {
@@ -68,8 +71,7 @@ fn main() {
 
             }
 
-            let elapsed = start_time.elapsed();
-            println!("Evaluation took: {:.2?}", elapsed);
+            println!("Evaluation took: {:.2?}", start_time.elapsed());
 
             // write to file
             if let Some(canvas) = env.canvas() {

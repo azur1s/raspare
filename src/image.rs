@@ -50,26 +50,64 @@ impl Image {
     }
 
     #[inline(always)]
-    pub fn get_pixel_unchecked(&self, x: u32, y: u32) -> Rgba<u8> {
+    pub fn get_pixel_unchecked(&self, x: usize, y: usize) -> Rgba<u8> {
         self.image
-            .get((y as usize, x as usize))
+            .get((y, x))
             .map(|&pixel| pixel)
             .unwrap()
     }
 
     #[inline(always)]
+    pub fn get_pixel_or_default(&self, x: usize, y: usize) -> Rgba<u8> {
+        self.image
+            .get((y, x))
+            .cloned()
+            .unwrap_or(Rgba([0, 0, 0, 0]))
+    }
+
+    #[inline(always)]
     pub fn set_pixel_unchecked(&mut self, x: usize, y: usize, color: Rgba<u8>) {
         self.image
-            .get_mut((y as usize, x as usize))
+            .get_mut((y, x))
             .map(|pixel| *pixel = color)
             .unwrap();
+    }
+
+    pub fn shift_with_empty(&mut self, dx: f64, dy: f64, fract: bool) {
+        let (dx, dy) = if fract {
+            ((dx as f64 * self.width  as f64).round() as isize,
+             (dy as f64 * self.height as f64).round() as isize)
+        } else {
+            (dx.round() as isize, dy.round() as isize)
+        };
+
+        let new_width = (self.width as isize + dx.abs()) as usize;
+        let new_height = (self.height as isize + dy.abs()) as usize;
+        let mut new_image = Array2::from_elem(
+            (new_height, new_width),
+            Rgba([0, 0, 0, 0]),
+        );
+
+        self.width = new_width;
+        self.height = new_height;
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let new_x = (x as isize + dx) as usize;
+                let new_y = (y as isize + dy) as usize;
+                if new_x < self.width && new_y < self.height {
+                    new_image[(new_y, new_x)] = self.get_pixel_or_default(x, y);
+                }
+            }
+        }
+        self.image = new_image;
     }
 
     pub fn blend_images(&mut self, above: &Image, mode: BlendMode) {
         for y in 0..self.height.min(above.height) {
             for x in 0..self.width.min(above.width) {
-                let top    = above.get_pixel_unchecked(x as u32, y as u32);
-                let bottom = self.get_pixel_unchecked(x as u32, y as u32);
+                let top = above.get_pixel_unchecked(x, y);
+                let bottom = self.get_pixel_unchecked(x, y);
 
                 let blended_pixel = mode.blend_pixel(top, bottom);
 
@@ -88,7 +126,7 @@ impl Image {
                 let src_x = (x as f64 * x_ratio).floor() as usize;
                 let src_y = (y as f64 * y_ratio).floor() as usize;
                 if src_x < self.width && src_y < self.height {
-                    resized[(y, x)] = self.get_pixel_unchecked(src_x as u32, src_y as u32);
+                    resized[(y, x)] = self.get_pixel_unchecked(src_x, src_y);
                 }
             }
         }
@@ -113,10 +151,10 @@ impl Image {
                 let x2 = (src_x.ceil() as usize).min(self.width - 1);
                 let y2 = (src_y.ceil() as usize).min(self.height - 1);
 
-                let a = self.get_pixel_unchecked(x1 as u32, y1 as u32);
-                let b = self.get_pixel_unchecked(x2 as u32, y1 as u32);
-                let c = self.get_pixel_unchecked(x1 as u32, y2 as u32);
-                let d = self.get_pixel_unchecked(x2 as u32, y2 as u32);
+                let a = self.get_pixel_unchecked(x1, y1);
+                let b = self.get_pixel_unchecked(x2, y1);
+                let c = self.get_pixel_unchecked(x1, y2);
+                let d = self.get_pixel_unchecked(x2, y2);
 
                 let x_diff = src_x - src_x.floor();
                 let y_diff = src_y - src_y.floor();
@@ -160,6 +198,10 @@ pub enum BlendMode {
 
 impl BlendMode {
     pub fn blend_pixel(&self, top: Rgba<u8>, bottom: Rgba<u8>) -> Rgba<u8> {
+        // If top pixel is fully transparent, return bottom pixel
+        // TODO: might not work on some other blend modes
+        if top[3] == 0 { return bottom; }
+
         let topf32 = Rgba([
             top[0] as f32 / 255.0,
             top[1] as f32 / 255.0,
@@ -173,7 +215,7 @@ impl BlendMode {
             bottom[3] as f32 / 255.0,
         ]);
 
-        let alpha_final = bottomf32[3] + topf32[3] - bottomf32[3] * topf32[3];
+        let alpha_final = (bottomf32[3] + topf32[3]) - (bottomf32[3] * topf32[3]);
         if alpha_final == 0.0 {
             return Rgba([0, 0, 0, 0]);
         };

@@ -11,6 +11,18 @@ pub enum DataType {
     Image(Image),
 }
 
+impl DataType {
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            DataType::Nil => "nil",
+            DataType::Number(_) => "number",
+            DataType::Str(_) => "string",
+            DataType::Sym(_) => "symbol",
+            DataType::Image(_) => "image",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Env {
     vars: HashMap<String, DataType>,
@@ -88,18 +100,34 @@ pub fn eval_expr<'a>(env: &mut Env, expr: Spanned<List>)
                 };
             }
 
+            macro_rules! next_or_default {
+                ($default:expr) => {
+                    if let Some(item) = iter.next() {
+                        item
+                    } else {
+                        return Ok($default);
+                    }
+                };
+            }
+
             let first = next_or!("missing function name");
 
             let (f, _) = first;
 
             macro_rules! check {
-                ($name:ident, $type:ident, $expr:expr) => {
-                    if let DataType::$type($name) = $expr {
+                ($name:ident, $type:ident, $expr:expr) => {{
+                    let result = $expr;
+                    if let DataType::$type($name) = result {
                         $name
                     } else {
-                        return err!(concat!(stringify!($name), " must be of type ", stringify!($type)));
+                        return err!(
+                            "{} must be of type {}, got {}",
+                            stringify!($name),
+                            stringify!($type),
+                            result.type_name()
+                        );
                     }
-                };
+                }};
             }
 
             match f {
@@ -171,6 +199,29 @@ pub fn eval_expr<'a>(env: &mut Env, expr: Spanned<List>)
                     Ok(DataType::Image(resized))
                 }
 
+                List::Sym("img-move") => {
+                    let image = next_or!("missing image for `move`");
+                    let x     = next_or!("missing x offset for `move`");
+                    let y     = next_or!("missing y offset for `move`");
+                    let method = next_or_default!(DataType::Sym("pixels".to_string()));
+
+                    let image = check!(image, Image, eval_expr(env, image)?);
+                    let x     = check!(x, Number, eval_expr(env, x)?);
+                    let y     = check!(y, Number, eval_expr(env, y)?);
+                    let method = check!(method, Sym, eval_expr(env, method)?);
+
+                    let mut new_image = image.clone();
+                    // new_image.shift_with_empty(x as isize, y as isize);
+                    match method.as_str() {
+                        "pixel" | "pixels" | "px"
+                            => new_image.shift_with_empty(x, y, false),
+                        "frac" | "fract" | "fraction" | "fractions"
+                            => new_image.shift_with_empty(x, y, true),
+                        _ => return err!("unknown move method: {}", method),
+                    }
+                    Ok(DataType::Image(new_image))
+                }
+
                 List::Sym("img-mix") => {
                     // first = bottom, second = top
                     let image_a = next_or!("missing first image for `mix`");
@@ -207,7 +258,10 @@ pub fn eval_expr<'a>(env: &mut Env, expr: Spanned<List>)
                     let first = next_or!("missing first argument for `->`");
                     let fns = iter.collect::<Vec<_>>();
 
-                    if fns.is_empty() { return err!("empty `->`"); }
+                    // if fns.is_empty() { return err!("empty `->`"); }
+                    if fns.is_empty() {
+                        return Ok(eval_expr(env, first)?);
+                    }
 
                     let mut result_list = first;
 

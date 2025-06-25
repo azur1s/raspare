@@ -1,17 +1,18 @@
-(def width  500)
-(def height 500)
+(def Width  1280)
+(def Height 720)
 
-(canvas width height)
+(canvas Width Height)
 
-(def gradient
-  (-> (img-load   "examples/assets/grad_b2w_100x100.png")
-      (img-resize 'bilinear width height)
+(def Gradient
+  (-> (img-load "examples/assets/grad_b2w_100x100.png")
+      (img-resize 'bilinear (/ Width 2) (/ Height 2))
+      (img-move 100 100 'px)
       ))
 
-(def image
-  (-> (img-load   "examples/assets/mh_lena_2048.png")
-      (img-resize 'bilinear width height)
-      (img-mix    gradient 'multiply)
+(def Image
+  (-> (img-load   "examples/assets/azur_atramenta.jpg")
+      (img-resize 'bilinear Width Height)
+      (img-mix    Gradient 'multiply)
       ))
 
-(img-render image)
+(img-render Image)

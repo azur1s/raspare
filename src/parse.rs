@@ -44,16 +44,18 @@ fn allowed_sym(c: char) -> bool {
 
 pub fn lexer<'src>()
 -> impl Parser<'src, &'src str, Vec<(Token<'src>, Span)>, extra::Err<Rich<'src, char, Span>>> {
-    let num = text::int(10)
-        .from_str()
-        .unwrapped()
+    let num = just('-').or_not()
+        .then(text::int(10).from_str::<i64>().unwrapped())
         .then(just('.')
-            .ignore_then(text::int(10).from_str::<u64>().unwrapped())
+            .ignore_then(text::digits(10).to_slice())
             .or_not()
         )
-        .map(|(i, f)| match f {
-            Some(f) => Token::Float(format!("{}.{}", i, f).parse().unwrap()),
-            None    => Token::Int(i),
+        .map(|((neg, i), f)| {
+            match f {
+                Some(f) => Token::Float(format!("{}{i}.{f}",
+                    if neg.is_some() { "-" } else { "" }).parse().unwrap()),
+                None    => Token::Int(if neg.is_some() { -i } else { i }),
+            }
         });
 
     let str_ = just('"')
