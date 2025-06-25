@@ -1,4 +1,5 @@
 use crate::image::*;
+use crate::image::blend::BlendMode;
 use crate::parse::{ List, Spanned };
 use std::collections::HashMap;
 
@@ -245,6 +246,22 @@ pub fn eval_expr<'a>(env: &mut Env, expr: Spanned<List>)
                     Ok(DataType::Image(new_image))
                 }
 
+                List::Sym("eff-blur") => {
+                    let image  = next_or!("missing image for `blur`");
+                    let radius = next_or!("missing radius for `blur`");
+
+                    let image  = check!(image, Image, eval_expr(env, image)?);
+                    let radius = check!(radius, Number, eval_expr(env, radius)?);
+
+                    if radius < 0.0 {
+                        return err!("blur radius cannot be negative");
+                    }
+
+                    let mut new_image = image.clone();
+                    new_image.blur(radius as usize);
+                    Ok(DataType::Image(new_image))
+                }
+
                 List::Sym("def") => {
                     let name  = next_or!("missing variable name for `def`");
                     let value = next_or!("missing value for variable");
@@ -328,16 +345,6 @@ pub fn eval_expr<'a>(env: &mut Env, expr: Spanned<List>)
                 _ => err!("unknown function: {}", f),
             }
         }
-        List::Vec(items) => unimplemented!(),
+        List::Vec(_items) => unimplemented!(),
     }
-}
-
-pub fn eval_exprs<'a>(
-    env: &mut Env,
-    exprs: Vec<Spanned<List>>,
-) -> Result<(), chumsky::error::Rich<'a, String>> {
-    for expr in exprs {
-        let result = eval_expr(env, expr)?;
-    }
-    Ok(())
 }

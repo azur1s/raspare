@@ -10,7 +10,6 @@ chumsky = "1.0.0-alpha.8"
 # images
 image = "0.25.6"
 ndarray = { version = "0.16.1", features = ["rayon"] }
-rayon = "1.10.0"
 
 # perf
 peak_alloc = "0.2.1"

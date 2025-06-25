@@ -1,0 +1,17 @@
+(def Width  1280)
+(def Height 720)
+
+(canvas Width Height)
+
+;; (defn glow [Image]
+;;   (-> Image
+;;     (img-blur 'gaussian 7)
+;;     (img-mix  Image 'multiply)))
+
+(def Image
+  (-> (img-load   "examples/assets/azur_atramenta.jpg")
+      (img-resize 'bilinear Width Height)
+      (eff-blur   14)
+      ))
+
+(img-render Image)

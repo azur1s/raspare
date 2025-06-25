@@ -795,7 +795,6 @@ dependencies = [
  "image",
  "ndarray",
  "peak_alloc",
- "rayon",
 ]
 
 [[package]]
